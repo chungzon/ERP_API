@@ -1,0 +1,24 @@
+{"Servers":[
+{
+	"Index":1,
+	"User":"EC_USER",
+	"Display": "EC_USER",
+	"Url":"jdbc:sqlserver://giogiogio.no-ip.org:31433;DatabaseName=EC_DB",
+	"Password":"fuckme",
+	"Driver": "net.sourceforge.jtds.jdbc.Driver"
+},{
+	"Index":2,
+	"User":"zhanyh_new",
+	"Display": "bagsong",
+	"Url":"jdbc:sqlserver://203.64.95.74:1433;DatabaseName=ZhanYH",
+	"Password":"fuckg8g8",
+	"Driver": "net.sourceforge.jtds.jdbc.Driver"
+},{
+	"Index":3,
+	"User":"erp",
+	"Display": "Local_MSSQL",
+	"Url":"jdbc:sqlserver://localhost;DatabaseName=ERP",
+	"Password":"waylen0304",
+	"Driver": "net.sourceforge.jtds.jdbc.Driver"
+}]
+}
