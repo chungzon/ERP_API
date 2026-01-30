@@ -34,6 +34,9 @@ class AppGUI(ctk.CTk):
         # Handle window close
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
+        # Auto-start API server after UI is ready
+        self.after(100, self._start_server)
+
     def _build_ui(self):
         # Top frame: config + server control
         top_frame = ctk.CTkFrame(self, fg_color="transparent")
