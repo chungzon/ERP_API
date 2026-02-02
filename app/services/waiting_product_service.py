@@ -15,7 +15,7 @@ WAIT_CONFIRM_STATUS_REVERSE = {v: k for k, v in WAIT_CONFIRM_STATUS.items()}
 def _product_code_exists(product_code: str) -> bool:
     """Check if product code already exists in CheckStore."""
     with db_manager.cursor() as cursor:
-        cursor.execute("SELECT 1 FROM CheckStore WHERE ProductCode = %s", (product_code,))
+        cursor.execute("SELECT 1 AS cnt FROM CheckStore WHERE ProductCode = %s", (product_code,))
         return cursor.fetchone() is not None
 
 
