@@ -51,7 +51,6 @@ class ProductItemDTO(BaseModel):
     pricing: Optional[float] = Field(default=None, alias="pricing")
     price_amount: Optional[int] = Field(default=None, alias="priceAmount")
     remark: Optional[str] = Field(default=None, alias="remark")
-    store_id: Optional[int] = Field(default=None, alias="storeId")
 
 
 class OrderReferenceDTO(BaseModel):

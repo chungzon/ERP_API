@@ -6,92 +6,140 @@ from app.models.quotation import CreateQuotationRequest
 
 logger = logging.getLogger(__name__)
 
-# WaitConfirmStatus ordinal values matching Java enum
-WAIT_CONFIRM_STATUS = {"新增": 0, "更新": 1, "封存": 2, "忽略": 3}
+# OrderSource ordinal values (bit: 0=報價單/廠商, 1=出貨子貨單/客戶)
+ORDER_SOURCE_QUOTATION = 0
+ORDER_SOURCE_SUB_BILL = 1
 
-# OrderSource ordinal values matching Java enum
-ORDER_SOURCE_QUOTATION = "0"  # 報價單
-ORDER_SOURCE_SUB_BILL = "1"  # 出貨子貨單
+# EstablishSource (bit: 0=系統建立, 1=人工建立)
+ESTABLISH_SOURCE_SYSTEM = 0
+ESTABLISH_SOURCE_MANUAL = 1
 
-# EstablishSource
-ESTABLISH_SOURCE_SYSTEM = "系統建立"
-ESTABLISH_SOURCE_MANUAL = "人工建立"
-
-# OffsetOrderStatus
-OFFSET_STATUS_NOT_OFFSET = "未沖帳"
-
-# ReviewStatus
-REVIEW_STATUS_NONE = "無"
+# SaleModel mapping (int)
+SALE_MODEL_MAP = {
+    "單價": 0,
+    "成本價": 1,
+    "定價": 2,
+    "VipPrice1": 3,
+    "VipPrice2": 4,
+    "VipPrice3": 5,
+}
 
 
 def _customer_exists(object_id: str) -> bool:
     """Check if customer ID exists."""
     with db_manager.cursor() as cursor:
-        cursor.execute("SELECT 1 AS cnt FROM dbo.Customer WHERE ObjectID = %s", (object_id,))
+        cursor.execute(
+            "SELECT 1 AS cnt FROM dbo.Customer WHERE ObjectID = %s",
+            (object_id,),
+        )
         return cursor.fetchone() is not None
 
 
 def _create_customer(object_id: str, info) -> None:
-    """Insert a new customer record."""
-    order_tax = "未稅"
+    """Insert a new customer record into Customer and related tables."""
+    # OrderTax: bit (0=未稅, 1=應稅)
+    order_tax = 0
     if info.order_tax and info.order_tax in ("應稅", "含稅"):
-        order_tax = "應稅"
+        order_tax = 1
 
-    print_pricing = "Y"
+    # PrintPricing: bit (0=N, 1=Y)
+    print_pricing = 1
     if info.print_pricing and info.print_pricing.upper() == "N":
-        print_pricing = "N"
+        print_pricing = 0
 
-    sale_model = info.sale_model or "單價"
-    valid_sale_models = ("VipPrice1", "VipPrice2", "VipPrice3", "成本價", "單價", "定價")
-    if sale_model not in valid_sale_models:
-        sale_model = "單價"
+    # SaleModel: int
+    sale_model = SALE_MODEL_MAP.get(info.sale_model, 0)
 
     with db_manager.cursor() as cursor:
+        # Insert into Customer table
         cursor.execute(
-            "INSERT INTO dbo.Customer ("
-            "ObjectID, ObjectName, ObjectNickName, PersonInCharge, ContactPerson, "
-            "Telephone1, Telephone2, CellPhone, Fax, Email, MemberID, "
-            "CompanyAddress, DeliveryAddress, InvoiceTitle, TaxIDNumber, InvoiceAddress, "
-            "OrderTax, PayableReceivableDiscount, PrintPricing, SaleModel, SaleDiscount, "
-            "Remark, ReceivableDay, CheckoutByMonth, StoreCode"
-            ") VALUES ("
-            "%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "
-            "%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s"
-            ")",
+            """INSERT INTO dbo.Customer (
+                ObjectID, ObjectName, ObjectNickName, PersonInCharge, ContactPerson,
+                Email, MemberID, InvoiceTitle, TaxIDNumber,
+                OrderTax, ReceivableDiscount, PrintPricing, SaleModel, SaleDiscount,
+                Remark, StoreCode
+            ) VALUES (
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s,
+                %s, %s, %s, %s, %s,
+                %s, %s
+            )""",
             (
                 object_id,
                 info.object_name or "",
                 info.object_nick_name or "",
                 info.person_in_charge or "",
                 info.contact_person or "",
-                info.telephone1 or "",
-                info.telephone2 or "",
-                info.cellphone or "",
-                info.fax or "",
                 info.email or "",
                 info.member_id or "",
-                info.company_address or "",
-                info.delivery_address or "",
                 info.invoice_title or "",
                 info.tax_id_number or "",
-                info.invoice_address or "",
                 order_tax,
                 info.receivable_discount if info.receivable_discount is not None else 1.0,
                 print_pricing,
                 sale_model,
                 info.sale_discount if info.sale_discount is not None else 1.0,
                 info.remark or "",
-                info.receivable_day if info.receivable_day is not None else 25,
-                1 if (info.checkout_by_month is True) else 0,
                 info.store_code or "",
             ),
         )
-    logger.info("Created new customer - CustomerID: %s, CustomerName: %s", object_id, info.object_name)
+
+        # Get inserted customer ID
+        cursor.execute("SELECT SCOPE_IDENTITY() AS id")
+        customer_id = int(cursor.fetchone()["id"])
+
+        # Insert into Customer_Phone table
+        cursor.execute(
+            """INSERT INTO dbo.Customer_Phone (
+                Customer_id, ObjectID, Telephone1, Telephone2, Cellphone, Fax
+            ) VALUES (%s, %s, %s, %s, %s, %s)""",
+            (
+                customer_id,
+                object_id,
+                info.telephone1 or "",
+                info.telephone2 or "",
+                info.cellphone or "",
+                info.fax or "",
+            ),
+        )
+
+        # Insert into Customer_Address table
+        cursor.execute(
+            """INSERT INTO dbo.Customer_Address (
+                Customer_id, ObjectID, CompanyAddress, DeliveryAddress, InvoiceAddress
+            ) VALUES (%s, %s, %s, %s, %s)""",
+            (
+                customer_id,
+                object_id,
+                info.company_address or "",
+                info.delivery_address or "",
+                info.invoice_address or "",
+            ),
+        )
+
+        # Insert into Customer_ReceiveInfo table
+        cursor.execute(
+            """INSERT INTO dbo.Customer_ReceiveInfo (
+                Customer_id, ObjectID, ReceivableDay, IsCheckoutByMonth
+            ) VALUES (%s, %s, %s, %s)""",
+            (
+                customer_id,
+                object_id,
+                info.receivable_day if info.receivable_day is not None else 25,
+                1 if info.checkout_by_month else 0,
+            ),
+        )
+
+    logger.info(
+        "Created new customer - CustomerID: %s, ObjectID: %s, CustomerName: %s",
+        customer_id,
+        object_id,
+        info.object_name,
+    )
 
 
-def _generate_order_number(order_date: str) -> str:
-    """Generate order number based on date (matching Java generateNewestOrderNumberOfEstablishOrder)."""
-    # Parse order date to get date prefix
+def _generate_order_number(order_date: str) -> int:
+    """Generate order number based on date. Returns bigint."""
     date_str = order_date.replace("-", "/")
     try:
         dt = datetime.strptime(date_str, "%Y/%m/%d")
@@ -102,20 +150,19 @@ def _generate_order_number(order_date: str) -> str:
 
     with db_manager.cursor() as cursor:
         cursor.execute(
-            "SELECT MAX(NowOrderNumber) as MaxNum FROM Orders "
-            "WHERE OrderSource = %s AND NowOrderNumber LIKE %s",
+            """SELECT MAX(OrderNumber) AS MaxNum FROM dbo.Orders
+               WHERE OrderSource = %s AND OrderNumber LIKE %s""",
             (ORDER_SOURCE_QUOTATION, f"{prefix}%"),
         )
         row = cursor.fetchone()
 
     if row and row.get("MaxNum"):
-        max_num = row["MaxNum"]
-        # Extract trailing number and increment
+        max_num = str(row["MaxNum"])
         seq = int(max_num[len(prefix):]) + 1
     else:
         seq = 1
 
-    return f"{prefix}{seq:04d}"
+    return int(f"{prefix}{seq:04d}")
 
 
 def create_quotation(request: CreateQuotationRequest) -> dict:
@@ -127,27 +174,30 @@ def create_quotation(request: CreateQuotationRequest) -> dict:
     if not _customer_exists(object_id):
         if request.customer_info is None:
             raise ValueError("客戶ID不存在，且未提供客戶資料資訊")
-        if not request.customer_info.object_name or not request.customer_info.object_name.strip():
+        if (
+            not request.customer_info.object_name
+            or not request.customer_info.object_name.strip()
+        ):
             raise ValueError("客戶名稱不能為空")
         _create_customer(object_id, request.customer_info)
 
-    # Generate order number
-    order_number = request.order_number
-    if not order_number or not order_number.strip():
+    # Generate order number (bigint)
+    if request.order_number and request.order_number.strip():
+        order_number = int(request.order_number.strip())
+    else:
         order_number = _generate_order_number(request.order_date)
 
-    # Establish source
+    # EstablishSource (bit: 0=系統建立, 1=人工建立)
     establish_source = ESTABLISH_SOURCE_SYSTEM
     if request.establish_source == "人工建立":
         establish_source = ESTABLISH_SOURCE_MANUAL
 
-    # Price info defaults
+    # Price info defaults (int)
     pi = request.price_info
-    total_price_none_tax = pi.total_price_none_tax if pi and pi.total_price_none_tax else "0"
-    tax = pi.tax if pi and pi.tax else "0"
-    discount = pi.discount if pi and pi.discount else "0"
-    total_price_include_tax = pi.total_price_include_tax if pi and pi.total_price_include_tax else "0"
-    number_of_items = str(len(request.products))
+    total_price_none_tax = int(pi.total_price_none_tax) if pi and pi.total_price_none_tax else 0
+    tax = int(pi.tax) if pi and pi.tax else 0
+    discount = int(pi.discount) if pi and pi.discount else 0
+    total_price_include_tax = int(pi.total_price_include_tax) if pi and pi.total_price_include_tax else 0
 
     # Project info defaults
     pj = request.project_info
@@ -177,38 +227,33 @@ def create_quotation(request: CreateQuotationRequest) -> dict:
     cashier_remark = request.cashier_remark or ""
     is_borrowed = 1 if request.is_borrowed else 0
     is_checkout = 1 if request.is_checkout else 0
+    number_of_items = len(request.products)
 
-    # Insert order
     with db_manager.cursor() as cursor:
+        # Insert into Orders table
         cursor.execute(
-            "INSERT INTO Orders ("
-            "OrderSource, OrderDate, ObjectID, NowOrderNumber, EstablishSource, "
-            "TotalPriceNoneTax, Tax, Discount, TotalPriceIncludeTax, NumberOfItems, "
-            "ProjectCode, ProjectName, ProjectQuantity, ProjectUnit, ProjectPriceAmount, "
-            "ProjectTotalPriceNoneTax, ProjectTax, ProjectTotalPriceIncludeTax, ProjectDifferentPrice, "
-            "PurchaserName, PurchaserTelephone, PurchaserCellphone, PurchaserAddress, "
-            "RecipientName, RecipientTelephone, RecipientCellphone, RecipientAddress, "
-            "OrderRemark, CashierRemark, IsBorrowed, IsCheckout, "
-            "IsOffset, ReviewStatus_Product, ReviewStatus_ProductGroup, status"
-            ") VALUES ("
-            "%s, %s, %s, %s, %s, "
-            "%s, %s, %s, %s, %s, "
-            "%s, %s, %s, %s, %s, "
-            "%s, %s, %s, %s, "
-            "%s, %s, %s, %s, "
-            "%s, %s, %s, %s, "
-            "%s, %s, %s, %s, "
-            "%s, %s, %s, %s"
-            ")",
+            """INSERT INTO dbo.Orders (
+                OrderNumber, OrderDate, OrderSource, ObjectID,
+                isCheckout, NumberOfItems, EstablishSource, isBorrowed, isOffset,
+                Remark, CashierRemark, status
+            ) VALUES (
+                %s, %s, %s, %s,
+                %s, %s, %s, %s, %s,
+                %s, %s, %s
+            )""",
             (
-                ORDER_SOURCE_QUOTATION, request.order_date, object_id, order_number, establish_source,
-                total_price_none_tax, tax, discount, total_price_include_tax, number_of_items,
-                project_code, project_name, project_quantity, project_unit, project_price_amount,
-                project_total_none_tax, project_tax, project_total_include_tax, project_different_price,
-                purchaser_name, purchaser_telephone, purchaser_cellphone, purchaser_address,
-                recipient_name, recipient_telephone, recipient_cellphone, recipient_address,
-                order_remark, cashier_remark, is_borrowed, is_checkout,
-                OFFSET_STATUS_NOT_OFFSET, REVIEW_STATUS_NONE, REVIEW_STATUS_NONE, "0",
+                order_number,
+                request.order_date,
+                ORDER_SOURCE_QUOTATION,
+                object_id,
+                is_checkout,
+                number_of_items,
+                establish_source,
+                is_borrowed,
+                0,  # isOffset: 0=未沖帳
+                order_remark,
+                cashier_remark,
+                0,  # status
             ),
         )
 
@@ -216,16 +261,75 @@ def create_quotation(request: CreateQuotationRequest) -> dict:
         cursor.execute("SELECT SCOPE_IDENTITY() AS id")
         order_id = int(cursor.fetchone()["id"])
 
-        # Insert order items
+        # Insert into Orders_Price table
+        cursor.execute(
+            """INSERT INTO dbo.Orders_Price (
+                Order_id, OrderNumber, TotalPriceNoneTax, Tax, Discount, TotalPriceIncludeTax
+            ) VALUES (%s, %s, %s, %s, %s, %s)""",
+            (
+                order_id,
+                order_number,
+                total_price_none_tax,
+                tax,
+                discount,
+                total_price_include_tax,
+            ),
+        )
+
+        # Insert into Orders_ProjectInfo table
+        cursor.execute(
+            """INSERT INTO dbo.Orders_ProjectInfo (
+                Order_id, OrderNumber, ProjectName, ProjectQuantity, ProjectUnit,
+                ProjectPriceAmount, ProjectTotalPriceNoneTax, ProjectTax,
+                ProjectTotalPriceIncludeTax, ProjectDifferentPrice, ProjectCode
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (
+                order_id,
+                order_number,
+                project_name,
+                project_quantity,
+                project_unit,
+                project_price_amount,
+                project_total_none_tax,
+                project_tax,
+                project_total_include_tax,
+                project_different_price,
+                project_code,
+            ),
+        )
+
+        # Insert into Orders_ShoppingInfo table
+        cursor.execute(
+            """INSERT INTO dbo.Orders_ShoppingInfo (
+                Order_id, OrderNumber,
+                PurchaserName, PurchaserTelephone, PurchaserCellphone, PurchaserAddress,
+                RecipientName, RecipientTelephone, RecipientCellphone, RecipientAddress
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (
+                order_id,
+                order_number,
+                purchaser_name,
+                purchaser_telephone,
+                purchaser_cellphone,
+                purchaser_address,
+                recipient_name,
+                recipient_telephone,
+                recipient_cellphone,
+                recipient_address,
+            ),
+        )
+
+        # Insert order items into Orders_Items table
         for i, product in enumerate(request.products):
             item_number = product.item_number if product.item_number is not None else (i + 1)
             cursor.execute(
-                "INSERT INTO Orders_Items ("
-                "Order_id, ItemNumber, ISBN, ProductName, Quantity, Unit, "
-                "BatchPrice, SinglePrice, Pricing, PriceAmount, Remark, Store_id"
-                ") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                """INSERT INTO dbo.Orders_Items (
+                    Order_id, OrderNumber, ItemNumber, ISBN, ProductName,
+                    Quantity, Unit, BatchPrice, SinglePrice, Pricing, PriceAmount, Remark
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                 (
                     order_id,
+                    order_number,
                     item_number,
                     product.isbn or "",
                     product.product_name or "",
@@ -236,28 +340,29 @@ def create_quotation(request: CreateQuotationRequest) -> dict:
                     product.pricing or 0.0,
                     product.price_amount or 0,
                     product.remark or "",
-                    product.store_id,
                 ),
             )
 
-        # Insert order references
+        # Insert order references into Orders_Reference table
         if request.order_references:
             if request.order_references.quotation_ids:
                 for ref_id in request.order_references.quotation_ids:
                     cursor.execute(
-                        "INSERT INTO OrderReference (Order_id, ReferenceOrderSource, ReferenceOrder_id) "
-                        "VALUES (%s, %s, %s)",
-                        (order_id, ORDER_SOURCE_QUOTATION, ref_id),
+                        """INSERT INTO dbo.Orders_Reference (
+                            Order_Id, Order_Reference_Id, SubBill_Reference_Id
+                        ) VALUES (%s, %s, %s)""",
+                        (order_id, ref_id, None),
                     )
             if request.order_references.sub_bill_ids:
                 for ref_id in request.order_references.sub_bill_ids:
                     cursor.execute(
-                        "INSERT INTO OrderReference (Order_id, ReferenceOrderSource, ReferenceOrder_id) "
-                        "VALUES (%s, %s, %s)",
-                        (order_id, ORDER_SOURCE_SUB_BILL, ref_id),
+                        """INSERT INTO dbo.Orders_Reference (
+                            Order_Id, Order_Reference_Id, SubBill_Reference_Id
+                        ) VALUES (%s, %s, %s)""",
+                        (order_id, None, ref_id),
                     )
 
-        # Insert pictures
+        # Insert pictures into Orders_Picture table
         if request.pictures:
             for pic in request.pictures:
                 if pic.base64_image:
@@ -265,14 +370,15 @@ def create_quotation(request: CreateQuotationRequest) -> dict:
                     if "," in base64_data:
                         base64_data = base64_data.split(",", 1)[1]
                     cursor.execute(
-                        "INSERT INTO OrderPicture (Order_id, ItemNumber, Picture) "
-                        "VALUES (%s, %s, %s)",
-                        (order_id, pic.item_number, base64_data),
+                        """INSERT INTO dbo.Orders_Picture (
+                            Order_id, ItemNumber, Picture, Source
+                        ) VALUES (%s, %s, %s, %s)""",
+                        (order_id, pic.item_number or 0, base64_data, "API"),
                     )
 
     logger.info("Quotation created - OrderID: %s, OrderNumber: %s", order_id, order_number)
     return {
         "orderId": order_id,
-        "orderNumber": order_number,
+        "orderNumber": str(order_number),
         "orderDate": request.order_date,
     }
