@@ -19,19 +19,19 @@ router = APIRouter(prefix="/api/quotation", tags=["Quotation"])
 def _validate_request(request: CreateQuotationRequest) -> None:
     """Validate quotation request, matching Java QuotationController.validateRequest."""
     if not request.order_date or not request.order_date.strip():
-        raise ValueError("报价日期不能为空")
+        raise ValueError("報價日期不能為空")
 
     if not request.object_id or not request.object_id.strip():
-        raise ValueError("客户ID不能为空（客户ID应来自LINE登录时的ID）")
+        raise ValueError("客戶ID不能為空（客戶ID應來自LINE登入時的ID）")
 
     if not request.products:
-        raise ValueError("商品列表不能为空，至少需要一个商品")
+        raise ValueError("商品列表不能為空，至少需要一個商品")
 
     for i, product in enumerate(request.products):
         if not product.product_name or not product.product_name.strip():
-            raise ValueError(f"商品{i + 1}的商品名称不能为空")
+            raise ValueError(f"商品{i + 1}的商品名稱不能為空")
         if product.quantity is None or product.quantity <= 0:
-            raise ValueError(f"商品{i + 1}的数量必须大于0")
+            raise ValueError(f"商品{i + 1}的數量必須大於0")
 
     if request.price_info:
         pi = request.price_info
@@ -45,7 +45,7 @@ def _validate_request(request: CreateQuotationRequest) -> None:
                 try:
                     int(field_val)
                 except ValueError:
-                    raise ValueError("价格信息格式错误，必须是数字")
+                    raise ValueError("價格資訊格式錯誤，必須是數字")
 
 
 @router.post("/create")
@@ -56,7 +56,7 @@ def create_quotation(request: CreateQuotationRequest):
 
         response = CreateQuotationResponse(
             success=True,
-            message="报价单创建成功",
+            message=f"報價單建立成功，單號：{result['orderNumber']}",
             data=QuotationData(
                 orderId=result["orderId"],
                 orderNumber=result["orderNumber"],
@@ -70,7 +70,7 @@ def create_quotation(request: CreateQuotationRequest):
     except ValueError as e:
         response = CreateQuotationResponse(
             success=False,
-            message=f"创建失败：{e}",
+            message=f"建立失敗：{e}",
             error=ErrorInfo(code="VALIDATION_ERROR", details=str(e)),
         )
         return JSONResponse(
@@ -82,7 +82,7 @@ def create_quotation(request: CreateQuotationRequest):
         logger.error("Quotation creation failed: %s", e, exc_info=True)
         response = CreateQuotationResponse(
             success=False,
-            message="创建失败：服务器内部错误",
+            message="建立失敗：伺服器內部錯誤",
             error=ErrorInfo(code="INTERNAL_ERROR", details=str(e)),
         )
         return JSONResponse(

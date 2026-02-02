@@ -126,9 +126,9 @@ def create_quotation(request: CreateQuotationRequest) -> dict:
     # Check customer existence
     if not _customer_exists(object_id):
         if request.customer_info is None:
-            raise ValueError("客户ID不存在，且未提供客户资料信息")
+            raise ValueError("客戶ID不存在，且未提供客戶資料資訊")
         if not request.customer_info.object_name or not request.customer_info.object_name.strip():
-            raise ValueError("客户名称不能为空")
+            raise ValueError("客戶名稱不能為空")
         _create_customer(object_id, request.customer_info)
 
     # Generate order number
