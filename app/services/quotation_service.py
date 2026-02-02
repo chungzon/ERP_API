@@ -27,7 +27,7 @@ REVIEW_STATUS_NONE = "無"
 def _customer_exists(object_id: str) -> bool:
     """Check if customer ID exists."""
     with db_manager.cursor() as cursor:
-        cursor.execute("SELECT 1 FROM ObjectInfo WHERE ObjectID = %s", (object_id,))
+        cursor.execute("SELECT 1 AS cnt FROM dbo.Customer WHERE ObjectID = %s", (object_id,))
         return cursor.fetchone() is not None
 
 
@@ -48,7 +48,7 @@ def _create_customer(object_id: str, info) -> None:
 
     with db_manager.cursor() as cursor:
         cursor.execute(
-            "INSERT INTO ObjectInfo ("
+            "INSERT INTO dbo.Customer ("
             "ObjectID, ObjectName, ObjectNickName, PersonInCharge, ContactPerson, "
             "Telephone1, Telephone2, CellPhone, Fax, Email, MemberID, "
             "CompanyAddress, DeliveryAddress, InvoiceTitle, TaxIDNumber, InvoiceAddress, "
@@ -86,7 +86,7 @@ def _create_customer(object_id: str, info) -> None:
                 info.store_code or "",
             ),
         )
-    logger.info("Created new customer - ObjectID: %s, ObjectName: %s", object_id, info.object_name)
+    logger.info("Created new customer - CustomerID: %s, CustomerName: %s", object_id, info.object_name)
 
 
 def _generate_order_number(order_date: str) -> str:
