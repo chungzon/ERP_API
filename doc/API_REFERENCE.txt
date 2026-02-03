@@ -24,6 +24,11 @@
   GET  /api/waiting-product/list        查詢待上架商品列表
   GET  /api/waiting-product/health      健康檢查
 
+【文件 API】
+  GET  /api/doc/reference               取得 API 說明文件（HTML 格式）
+  GET  /api/doc/reference/raw           取得 API 說明文件（純文字）
+  GET  /api/doc/health                  健康檢查
+
 
 ################################################################################
 #                                                                              #
