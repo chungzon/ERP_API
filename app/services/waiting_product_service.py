@@ -25,6 +25,15 @@ def create_waiting_product(request) -> dict:
     if _product_code_exists(request.product_code):
         raise ValueError(f"商品碼已存在：{request.product_code}")
 
+    # Validate newFirstCategory if provided
+    new_first_category = request.new_first_category
+    if new_first_category is not None and new_first_category.strip():
+        new_first_category = new_first_category.strip()
+        if len(new_first_category) != 2:
+            raise ValueError(f"總類編號長度必須為 2 位數，目前為 {len(new_first_category)} 位")
+    else:
+        new_first_category = ""
+
     current_date = datetime.now().strftime("%Y/%m/%d")
     status_ordinal = WAIT_CONFIRM_STATUS["新增"]
 
@@ -33,14 +42,14 @@ def create_waiting_product(request) -> dict:
             "INSERT INTO CheckStore ("
             "ProductCode, ProductName, VendorCode, Vendor, "
             "Pricing, SinglePrice, BatchPrice, VipPrice1, VipPrice2, VipPrice3, "
-            "Unit, Brand, [Describe], Remark, SupplyStatus, "
+            "Unit, Brand, [Describe], Remark, SupplyStatus, NewFirstCategory, "
             "FirstCategory_Id, SecondCategory_Id, ThirdCategory_Id, "
             "Picture1, Picture2, Picture3, "
             "KeyinDate, UpdateDate, Status"
             ") VALUES ("
             "%s, %s, %s, %s, "
             "%s, %s, %s, %s, %s, %s, "
-            "%s, %s, %s, %s, %s, "
+            "%s, %s, %s, %s, %s, %s, "
             "%s, %s, %s, "
             "%s, %s, %s, "
             "%s, %s, %s"
@@ -61,6 +70,7 @@ def create_waiting_product(request) -> dict:
                 request.describe or "",
                 request.remark or "",
                 request.supply_status or "",
+                new_first_category,
                 request.first_category_id,
                 request.second_category_id,
                 request.third_category_id,

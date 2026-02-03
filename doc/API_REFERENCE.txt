@@ -1,0 +1,577 @@
+================================================================================
+                         ERP 系統 API 完整說明文件
+================================================================================
+
+基本資訊：
+- 預設端口：8080
+- 上下文路徑：/api
+- Content-Type：application/json
+
+================================================================================
+                              API 端點總覽
+================================================================================
+
+【商品 API】
+  GET  /api/product/list                查詢商品列表
+  GET  /api/product/health              健康檢查
+
+【報價單 API】
+  POST /api/quotation/create            建立報價單
+  GET  /api/quotation/health            健康檢查
+
+【待上架商品 API】
+  POST /api/waiting-product/create      新增待上架商品
+  GET  /api/waiting-product/list        查詢待上架商品列表
+  GET  /api/waiting-product/health      健康檢查
+
+
+################################################################################
+#                                                                              #
+#                              商品 API                                        #
+#                                                                              #
+################################################################################
+
+================================================================================
+【1】查詢商品列表
+================================================================================
+
+GET /api/product/list
+
+查詢參數（全部選填）：
+  - isbn         ISBN（模糊查詢）
+  - firmCode     商品碼（模糊查詢）
+  - productName  品名（模糊查詢）
+
+查詢優先順序：ISBN > 商品碼 > 品名
+
+--------------------------------------------------------------------------------
+請求範例：
+--------------------------------------------------------------------------------
+
+GET /api/product/list
+GET /api/product/list?isbn=978
+GET /api/product/list?firmCode=ABC
+GET /api/product/list?productName=滑鼠
+
+--------------------------------------------------------------------------------
+回應範例（成功）：
+--------------------------------------------------------------------------------
+
+{
+  "success": true,
+  "message": "查詢成功",
+  "data": [
+    {
+      "isbn": "9781234567890",
+      "internationalCode": "INT001",
+      "firmCode": "ABC123",
+      "productCode": "P001",
+      "productName": "無線滑鼠",
+      "unit": "個",
+      "vendorCode": "778",
+      "vendorName": "建達國際",
+      "firstCategory": "電腦周邊",
+      "secondCategory": "輸入設備",
+      "thirdCategory": "滑鼠",
+      "batchPrice": "500",
+      "singlePrice": "600",
+      "pricing": "800",
+      "vipPrice1": "750",
+      "vipPrice2": "700",
+      "vipPrice3": "650",
+      "inStock": "100",
+      "safetyStock": "10",
+      "discount": 0.9
+    }
+  ],
+  "total": 1,
+  "error": null
+}
+
+
+################################################################################
+#                                                                              #
+#                             報價單 API                                       #
+#                                                                              #
+################################################################################
+
+================================================================================
+【2】建立報價單
+================================================================================
+
+POST /api/quotation/create
+Content-Type: application/json
+
+必填欄位：
+  - orderDate    報價日期（yyyy/MM/dd）
+  - objectID     客戶ID
+  - products     商品列表（至少一項）
+
+--------------------------------------------------------------------------------
+請求範例（最精簡）：
+--------------------------------------------------------------------------------
+
+{
+  "orderDate": "2026/01/27",
+  "objectID": "1611",
+  "products": [
+    {
+      "productName": "測試商品",
+      "quantity": 1
+    }
+  ]
+}
+
+--------------------------------------------------------------------------------
+請求範例（包含價格資訊）：
+--------------------------------------------------------------------------------
+
+{
+  "orderDate": "2026/01/27",
+  "objectID": "1611",
+  "orderNumber": "Q20260127001",
+  "establishSource": "API建立",
+  "products": [
+    {
+      "itemNumber": 1,
+      "isbn": "9781234567890",
+      "productName": "無線滑鼠",
+      "quantity": 2,
+      "unit": "個",
+      "batchPrice": 500,
+      "singlePrice": 600,
+      "pricing": 800,
+      "priceAmount": 1200,
+      "remark": "商品備註"
+    }
+  ],
+  "priceInfo": {
+    "totalPriceNoneTax": "1143",
+    "tax": "57",
+    "discount": "0",
+    "totalPriceIncludeTax": "1200"
+  },
+  "remark": "訂單備註"
+}
+
+--------------------------------------------------------------------------------
+請求範例（完整欄位）：
+--------------------------------------------------------------------------------
+
+{
+  "orderDate": "2026/01/27",
+  "objectID": "1611",
+  "orderNumber": "Q20260127001",
+  "establishSource": "API建立",
+  "customerInfo": {
+    "objectName": "測試客戶",
+    "objectNickName": "測試",
+    "personInCharge": "王小明",
+    "contactPerson": "李小華",
+    "telephone1": "02-12345678",
+    "telephone2": "02-87654321",
+    "cellphone": "0912345678",
+    "fax": "02-12345679",
+    "email": "test@example.com",
+    "memberID": "M001",
+    "companyAddress": "台北市中正區測試路1號",
+    "deliveryAddress": "台北市中正區測試路1號",
+    "invoiceTitle": "測試公司",
+    "taxIDNumber": "12345678",
+    "invoiceAddress": "台北市中正區測試路1號",
+    "orderTax": "應稅",
+    "receivableDiscount": 1.0,
+    "printPricing": "Y",
+    "saleModel": "單價",
+    "saleDiscount": 1.0,
+    "remark": "客戶備註",
+    "receivableDay": 30,
+    "checkoutByMonth": true,
+    "storeCode": "S001"
+  },
+  "priceInfo": {
+    "totalPriceNoneTax": "1143",
+    "tax": "57",
+    "discount": "0",
+    "totalPriceIncludeTax": "1200"
+  },
+  "projectInfo": {
+    "projectCode": "PRJ001",
+    "projectName": "測試專案",
+    "projectQuantity": "1",
+    "projectUnit": "式",
+    "projectPriceAmount": "1200",
+    "projectTotalPriceNoneTax": "1143",
+    "projectTax": "57",
+    "projectTotalPriceIncludeTax": "1200",
+    "projectDifferentPrice": "0"
+  },
+  "shoppingInfo": {
+    "purchaserName": "購買人",
+    "purchaserTelephone": "02-12345678",
+    "purchaserCellphone": "0912345678",
+    "purchaserAddress": "台北市購買地址",
+    "recipientName": "收件人",
+    "recipientTelephone": "02-87654321",
+    "recipientCellphone": "0987654321",
+    "recipientAddress": "台北市收件地址"
+  },
+  "products": [
+    {
+      "itemNumber": 1,
+      "isbn": "9781234567890",
+      "productName": "無線滑鼠",
+      "quantity": 2,
+      "unit": "個",
+      "batchPrice": 500,
+      "singlePrice": 600,
+      "pricing": 800,
+      "priceAmount": 1200,
+      "remark": "商品備註",
+      "storeId": 123
+    }
+  ],
+  "remark": "訂單備註",
+  "cashierRemark": "出納備註",
+  "isBorrowed": false,
+  "isCheckout": false,
+  "orderReferences": {
+    "quotationIds": [1, 2],
+    "subBillIds": [3, 4]
+  },
+  "pictures": [
+    {
+      "itemNumber": 1,
+      "base64Image": "data:image/png;base64,..."
+    }
+  ]
+}
+
+--------------------------------------------------------------------------------
+回應範例（成功）：
+--------------------------------------------------------------------------------
+
+{
+  "success": true,
+  "message": "报价单创建成功",
+  "data": {
+    "orderId": 12345,
+    "orderNumber": "Q20260127001",
+    "orderDate": "2026/01/27"
+  },
+  "error": null
+}
+
+--------------------------------------------------------------------------------
+回應範例（失敗）：
+--------------------------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "创建失败：报价日期不能为空",
+  "data": null,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "details": "报价日期不能为空"
+  }
+}
+
+
+################################################################################
+#                                                                              #
+#                           待上架商品 API                                     #
+#                                                                              #
+################################################################################
+
+================================================================================
+【3】新增待上架商品
+================================================================================
+
+POST /api/waiting-product/create
+Content-Type: application/json
+
+必填欄位：
+  - productCode  商品碼
+  - productName  品名
+  - vendorCode   供應商代碼
+  - vendor       供應商名稱
+
+重要選填欄位：
+  - newFirstCategory  總類編號（大類別）
+                      ※ 轉換為正式商品時必填
+                      ※ 必須為 2 位數字元（如 "01", "12"）
+                      ※ 用於產生 ISBN 及分類對應
+
+--------------------------------------------------------------------------------
+請求範例（最精簡）：
+--------------------------------------------------------------------------------
+
+{
+  "productCode": "TEST001",
+  "productName": "測試商品A",
+  "vendorCode": 778,
+  "vendor": "建達國際"
+}
+
+--------------------------------------------------------------------------------
+請求範例（包含價格與總類）：
+--------------------------------------------------------------------------------
+
+{
+  "productCode": "TEST002",
+  "productName": "測試商品B",
+  "vendorCode": 750,
+  "vendor": "廣鐸企業",
+  "pricing": 1500,
+  "singlePrice": 1200,
+  "batchPrice": 900,
+  "unit": "個",
+  "brand": "TestBrand",
+  "newFirstCategory": "01"
+}
+
+--------------------------------------------------------------------------------
+請求範例（完整欄位）：
+--------------------------------------------------------------------------------
+
+{
+  "productCode": "TEST003",
+  "productName": "測試商品C",
+  "vendorCode": 779,
+  "vendor": "Genuine捷元",
+  "pricing": 2000,
+  "singlePrice": 1600,
+  "batchPrice": 1200,
+  "vipPrice1": 1500,
+  "vipPrice2": 1400,
+  "vipPrice3": 1300,
+  "unit": "台",
+  "brand": "ASUS",
+  "describe": "這是商品描述",
+  "remark": "這是備註",
+  "supplyStatus": "正常供貨",
+  "newFirstCategory": "12",
+  "firstCategoryId": 1,
+  "secondCategoryId": 2,
+  "thirdCategoryId": 3,
+  "picture1": null,
+  "picture2": null,
+  "picture3": null
+}
+
+--------------------------------------------------------------------------------
+回應範例（成功）：
+--------------------------------------------------------------------------------
+
+{
+  "success": true,
+  "message": "待上架商品建立成功",
+  "data": {
+    "productCode": "TEST001",
+    "productName": "測試商品A"
+  },
+  "error": null
+}
+
+--------------------------------------------------------------------------------
+回應範例（失敗 - 驗證錯誤）：
+--------------------------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "建立失敗：商品碼不能為空",
+  "data": null,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "details": "商品碼不能為空"
+  }
+}
+
+--------------------------------------------------------------------------------
+回應範例（失敗 - 商品碼重複）：
+--------------------------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "建立失敗：商品碼已存在：TEST001",
+  "data": null,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "details": "商品碼已存在：TEST001"
+  }
+}
+
+--------------------------------------------------------------------------------
+回應範例（失敗 - 總類編號長度錯誤）：
+--------------------------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "建立失敗：總類編號長度必須為 2 位數，目前為 1 位",
+  "data": null,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "details": "總類編號長度必須為 2 位數，目前為 1 位"
+  }
+}
+
+================================================================================
+【4】查詢待上架商品列表
+================================================================================
+
+GET /api/waiting-product/list
+
+查詢參數（全部選填）：
+  - vendorCode   依供應商代碼篩選
+  - productName  依品名模糊查詢
+  - status       依狀態篩選（新增/更新/封存/忽略）
+
+--------------------------------------------------------------------------------
+請求範例：
+--------------------------------------------------------------------------------
+
+GET /api/waiting-product/list
+GET /api/waiting-product/list?vendorCode=778
+GET /api/waiting-product/list?productName=測試
+GET /api/waiting-product/list?status=新增
+GET /api/waiting-product/list?vendorCode=778&status=新增
+
+--------------------------------------------------------------------------------
+回應範例（成功）：
+--------------------------------------------------------------------------------
+
+{
+  "success": true,
+  "message": "查詢成功",
+  "data": [
+    {
+      "productCode": "TEST001",
+      "productName": "測試商品A",
+      "vendorCode": 778,
+      "vendor": "建達國際",
+      "pricing": 0.0,
+      "singlePrice": 0.0,
+      "batchPrice": 0.0,
+      "vipPrice1": 0.0,
+      "vipPrice2": 0.0,
+      "vipPrice3": 0.0,
+      "unit": "",
+      "brand": "",
+      "describe": "",
+      "remark": "",
+      "supplyStatus": "",
+      "newFirstCategory": "01",
+      "firstCategoryId": null,
+      "secondCategoryId": null,
+      "thirdCategoryId": null,
+      "keyinDate": "2026/01/27",
+      "updateDate": "2026/01/27",
+      "status": "新增",
+      "picture1": null,
+      "picture2": null,
+      "picture3": null
+    }
+  ],
+  "total": 1,
+  "error": null
+}
+
+
+################################################################################
+#                                                                              #
+#                              附錄                                            #
+#                                                                              #
+################################################################################
+
+================================================================================
+【附錄一】供應商代碼對照表
+================================================================================
+
+  代碼    供應商名稱
+  ----    ----------
+  778     建達國際
+  750     廣鐸企業
+  779     Genuine捷元
+  777     聯強國際
+  776     精技電腦
+  781     展碁國際
+  787     神腦國際
+  780     精豪電腦
+
+================================================================================
+【附錄二】待上架商品狀態
+================================================================================
+
+  狀態值    說明
+  ------    ----
+  新增      新商品待上架
+  更新      商品資訊已更新
+  封存      商品已封存
+  忽略      商品已忽略
+
+================================================================================
+【附錄三】CURL 測試指令
+================================================================================
+
+# ===== 商品 API =====
+
+# 查詢所有商品
+curl -X GET "http://localhost:8080/api/product/list"
+
+# 依 ISBN 查詢
+curl -X GET "http://localhost:8080/api/product/list?isbn=978"
+
+# 依商品碼查詢
+curl -X GET "http://localhost:8080/api/product/list?firmCode=ABC"
+
+# 依品名查詢
+curl -X GET "http://localhost:8080/api/product/list?productName=滑鼠"
+
+# 健康檢查
+curl -X GET "http://localhost:8080/api/product/health"
+
+
+# ===== 報價單 API =====
+
+# 建立報價單（最精簡）
+curl -X POST "http://localhost:8080/api/quotation/create" -H "Content-Type: application/json" -d "{\"orderDate\":\"2026/01/27\",\"objectID\":\"1611\",\"products\":[{\"productName\":\"測試商品\",\"quantity\":1}]}"
+
+# 健康檢查
+curl -X GET "http://localhost:8080/api/quotation/health"
+
+
+# ===== 待上架商品 API =====
+
+# 新增待上架商品（最精簡）
+curl -X POST "http://localhost:8080/api/waiting-product/create" -H "Content-Type: application/json" -d "{\"productCode\":\"TEST001\",\"productName\":\"測試商品A\",\"vendorCode\":778,\"vendor\":\"建達國際\"}"
+
+# 新增待上架商品（含價格與總類）
+curl -X POST "http://localhost:8080/api/waiting-product/create" -H "Content-Type: application/json" -d "{\"productCode\":\"TEST002\",\"productName\":\"測試商品B\",\"vendorCode\":750,\"vendor\":\"廣鐸企業\",\"pricing\":1500,\"singlePrice\":1200,\"batchPrice\":900,\"newFirstCategory\":\"01\"}"
+
+# 查詢所有待上架商品
+curl -X GET "http://localhost:8080/api/waiting-product/list"
+
+# 依供應商查詢
+curl -X GET "http://localhost:8080/api/waiting-product/list?vendorCode=778"
+
+# 依品名查詢
+curl -X GET "http://localhost:8080/api/waiting-product/list?productName=測試"
+
+# 依狀態查詢
+curl -X GET "http://localhost:8080/api/waiting-product/list?status=新增"
+
+# 健康檢查
+curl -X GET "http://localhost:8080/api/waiting-product/health"
+
+================================================================================
+【附錄四】錯誤碼說明
+================================================================================
+
+  錯誤碼              說明
+  ------              ----
+  VALIDATION_ERROR    參數驗證錯誤（如必填欄位為空、格式錯誤等）
+  INTERNAL_ERROR      伺服器內部錯誤
+
+================================================================================
+                              文件結束
+================================================================================

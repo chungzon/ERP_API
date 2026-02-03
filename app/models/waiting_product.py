@@ -27,6 +27,7 @@ class CreateWaitingProductRequest(BaseModel):
     supply_status: Optional[str] = Field(default=None, alias="supplyStatus")
 
     # Optional - categories
+    new_first_category: Optional[str] = Field(default=None, alias="newFirstCategory")
     first_category_id: Optional[int] = Field(default=None, alias="firstCategoryId")
     second_category_id: Optional[int] = Field(default=None, alias="secondCategoryId")
     third_category_id: Optional[int] = Field(default=None, alias="thirdCategoryId")
