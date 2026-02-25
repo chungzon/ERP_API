@@ -31,6 +31,13 @@
   DELETE /api/category/delete/{id}        刪除商品分類
   GET    /api/category/health             健康檢查
 
+【廠商 API】
+  POST   /api/vendor/create               建立廠商
+  PUT    /api/vendor/update               修改廠商
+  DELETE /api/vendor/delete/{vendorCode}  刪除廠商
+  GET    /api/vendor/list                 查詢廠商列表
+  GET    /api/vendor/health               健康檢查
+
 【文件 API】
   GET  /api/doc/reference               取得 API 說明文件（HTML 格式）
   GET  /api/doc/reference/raw           取得 API 說明文件（純文字）
@@ -825,6 +832,330 @@ DELETE /api/category/delete/01
 
 ################################################################################
 #                                                                              #
+#                             廠商 API                                         #
+#                                                                              #
+################################################################################
+
+================================================================================
+【9】建立廠商
+================================================================================
+
+POST /api/vendor/create
+Content-Type: application/json
+
+必填欄位：
+  - vendorName   廠商名稱
+  - vendorCode   廠商代碼（對應 Manufacturer.ObjectID，不可重複）
+
+選填欄位（未填入時依 ERP 桌面邏輯帶入預設值）：
+  - nickName             簡稱（預設 ""）
+  - personInCharge       負責人（預設 ""）
+  - contactPerson        聯絡人（預設 ""）
+  - email                Email（預設 ""）
+  - invoiceTitle         發票抬頭（預設 ""）
+  - taxIDNumber          統一編號（預設 ""）
+  - orderTax             稅別（預設 0；0=未稅, 1=應稅）
+  - payableDiscount      付款折扣（預設 1.0）
+  - defaultPaymentMethod 付款方式（預設 0；0=現金, 1=支票）
+  - remark               備註（預設 ""）
+  - telephone1           電話1（預設 ""）
+  - telephone2           電話2（預設 ""）
+  - cellphone            手機（預設 ""）
+  - fax                  傳真（預設 ""）
+  - companyAddress       公司地址（預設 ""）
+  - deliveryAddress      送貨地址（預設 ""）
+  - invoiceAddress       發票地址（預設 ""）
+  - payableDay           付款天數（預設 25）
+  - checkTitle           支票抬頭（預設 ""）
+  - checkDueDay          支票到期天數（預設 0）
+  - discountRemittanceFee 匯費扣除（預設 0；0=未扣, 1=已扣）
+  - remittanceFee        匯款手續費（預設 0）
+  - discountPostage      郵資扣除（預設 0；0=未扣, 1=已扣）
+  - postage              郵資（預設 0）
+  - bankBranch           銀行分行（預設 ""）
+  - accountName          戶名（預設 ""）
+  - bankAccount          銀行帳號（預設 ""）
+  - isCheckoutByMonth    月結（預設 false）
+
+資料儲存表：
+  Manufacturer（主表）+ Manufacturer_Phone + Manufacturer_Address + Manufacturer_PayInfo
+
+--------------------------------------------------------------------------------
+請求範例（最精簡 - 僅必填）：
+--------------------------------------------------------------------------------
+
+{
+  "vendorName": "建達國際",
+  "vendorCode": "778"
+}
+
+--------------------------------------------------------------------------------
+請求範例（完整欄位）：
+--------------------------------------------------------------------------------
+
+{
+  "vendorName": "建達國際",
+  "vendorCode": "778",
+  "nickName": "建達",
+  "personInCharge": "王小明",
+  "contactPerson": "李小華",
+  "email": "info@xander.com.tw",
+  "invoiceTitle": "建達國際股份有限公司",
+  "taxIDNumber": "12345678",
+  "orderTax": 1,
+  "payableDiscount": 1.0,
+  "defaultPaymentMethod": 0,
+  "remark": "",
+  "telephone1": "02-12345678",
+  "telephone2": "",
+  "cellphone": "0912345678",
+  "fax": "02-12345679",
+  "companyAddress": "台北市中正區測試路1號",
+  "deliveryAddress": "台北市中正區測試路1號",
+  "invoiceAddress": "台北市中正區測試路1號",
+  "payableDay": 25,
+  "checkTitle": "",
+  "checkDueDay": 0,
+  "discountRemittanceFee": 0,
+  "remittanceFee": 0,
+  "discountPostage": 0,
+  "postage": 0,
+  "bankBranch": "台北分行",
+  "accountName": "建達國際",
+  "bankAccount": "12345678901234",
+  "isCheckoutByMonth": true
+}
+
+--------------------------------------------------------------------------------
+回應範例（成功）：
+--------------------------------------------------------------------------------
+
+{
+  "success": true,
+  "message": "廠商建立成功",
+  "data": {
+    "vendorId": 1,
+    "vendorCode": "778",
+    "vendorName": "建達國際",
+    "orderTax": 0,
+    "payableDiscount": 1.0,
+    "defaultPaymentMethod": 0,
+    "payableDay": 25,
+    "checkDueDay": 0,
+    "discountRemittanceFee": 0,
+    "remittanceFee": 0,
+    "discountPostage": 0,
+    "postage": 0,
+    "isCheckoutByMonth": false
+  }
+}
+
+--------------------------------------------------------------------------------
+回應範例（失敗 - 代碼重複）：
+--------------------------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "建立失敗：廠商代碼已存在：778",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "details": "廠商代碼已存在：778"
+  }
+}
+
+================================================================================
+【10】修改廠商
+================================================================================
+
+PUT /api/vendor/update
+Content-Type: application/json
+
+必填欄位（二擇一）：
+  - vendorId     廠商 ID（Manufacturer.id）
+  - vendorCode   廠商代碼（Manufacturer.ObjectID）
+
+選填欄位：
+  與建立相同（vendorName, nickName, telephone1, ... 等）
+  僅更新有傳入的欄位，未傳入的保持不變
+
+--------------------------------------------------------------------------------
+請求範例：
+--------------------------------------------------------------------------------
+
+{
+  "vendorCode": "778",
+  "vendorName": "建達國際（修改）",
+  "telephone1": "02-99999999"
+}
+
+--------------------------------------------------------------------------------
+回應範例（成功）：
+--------------------------------------------------------------------------------
+
+{
+  "success": true,
+  "message": "廠商修改成功",
+  "data": {
+    "vendorId": 1,
+    "vendorCode": "778",
+    "vendorName": "建達國際（修改）",
+    "telephone1": "02-99999999",
+    "orderTax": 0,
+    "payableDiscount": 1.0,
+    "defaultPaymentMethod": 0,
+    "payableDay": 25,
+    "checkDueDay": 0,
+    "discountRemittanceFee": 0,
+    "remittanceFee": 0,
+    "discountPostage": 0,
+    "postage": 0,
+    "isCheckoutByMonth": false
+  }
+}
+
+--------------------------------------------------------------------------------
+回應範例（失敗 - 廠商不存在）：
+--------------------------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "修改失敗：廠商不存在：vendorCode=999",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "details": "廠商不存在：vendorCode=999"
+  }
+}
+
+================================================================================
+【11】刪除廠商
+================================================================================
+
+DELETE /api/vendor/delete/{vendorCode}
+
+路徑參數：
+  - vendorCode   要刪除的廠商代碼
+
+刪除前檢查：
+  1. 確認廠商存在
+  2. 確認 Orders 中無關聯訂單（ObjectID = vendorCode）
+  3. 確認 store 中無關聯商品（VendorCode = vendorCode）
+
+刪除順序：衛星表（PayInfo → Address → Phone）→ 主表（Manufacturer）
+
+--------------------------------------------------------------------------------
+請求範例：
+--------------------------------------------------------------------------------
+
+DELETE /api/vendor/delete/778
+
+--------------------------------------------------------------------------------
+回應範例（成功）：
+--------------------------------------------------------------------------------
+
+{
+  "success": true,
+  "message": "廠商刪除成功"
+}
+
+--------------------------------------------------------------------------------
+回應範例（失敗 - 存在關聯訂單）：
+--------------------------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "刪除失敗：此廠商尚有 5 筆關聯訂單，無法刪除",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "details": "此廠商尚有 5 筆關聯訂單，無法刪除"
+  }
+}
+
+--------------------------------------------------------------------------------
+回應範例（失敗 - 存在關聯商品）：
+--------------------------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "刪除失敗：此廠商尚有 10 筆關聯商品，無法刪除",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "details": "此廠商尚有 10 筆關聯商品，無法刪除"
+  }
+}
+
+================================================================================
+【12】查詢廠商列表
+================================================================================
+
+GET /api/vendor/list
+
+查詢參數（全部選填）：
+  - vendorCode   廠商代碼（精確比對）
+  - vendorName   廠商名稱（模糊查詢）
+
+排序：依廠商代碼升冪
+
+--------------------------------------------------------------------------------
+請求範例：
+--------------------------------------------------------------------------------
+
+GET /api/vendor/list
+GET /api/vendor/list?vendorCode=778
+GET /api/vendor/list?vendorName=建達
+
+--------------------------------------------------------------------------------
+回應範例（成功）：
+--------------------------------------------------------------------------------
+
+{
+  "success": true,
+  "message": "查詢成功",
+  "data": [
+    {
+      "vendorId": 1,
+      "vendorCode": "778",
+      "vendorName": "建達國際",
+      "nickName": "建達",
+      "personInCharge": "王小明",
+      "contactPerson": "李小華",
+      "email": "info@xander.com.tw",
+      "invoiceTitle": "建達國際股份有限公司",
+      "taxIDNumber": "12345678",
+      "orderTax": 1,
+      "payableDiscount": 1.0,
+      "defaultPaymentMethod": 0,
+      "telephone1": "02-12345678",
+      "cellphone": "0912345678",
+      "companyAddress": "台北市中正區測試路1號",
+      "payableDay": 25,
+      "checkDueDay": 0,
+      "discountRemittanceFee": 0,
+      "remittanceFee": 0,
+      "discountPostage": 0,
+      "postage": 0,
+      "bankBranch": "台北分行",
+      "accountName": "建達國際",
+      "bankAccount": "12345678901234",
+      "isCheckoutByMonth": true
+    }
+  ],
+  "total": 1
+}
+
+--------------------------------------------------------------------------------
+回應範例（成功 - 無資料）：
+--------------------------------------------------------------------------------
+
+{
+  "success": true,
+  "message": "查詢成功",
+  "data": [],
+  "total": 0
+}
+
+
+################################################################################
+#                                                                              #
 #                              附錄                                            #
 #                                                                              #
 ################################################################################
@@ -938,6 +1269,33 @@ curl -X DELETE "http://localhost:8080/api/category/delete/01"
 
 # 健康檢查
 curl -X GET "http://localhost:8080/api/category/health"
+
+
+# ===== 廠商 API =====
+
+# 建立廠商（最精簡）
+curl -X POST "http://localhost:8080/api/vendor/create" -H "Content-Type: application/json" -d "{\"vendorName\":\"測試廠商\",\"vendorCode\":\"999\"}"
+
+# 建立廠商（含完整資料）
+curl -X POST "http://localhost:8080/api/vendor/create" -H "Content-Type: application/json" -d "{\"vendorName\":\"建達國際\",\"vendorCode\":\"778\",\"nickName\":\"建達\",\"personInCharge\":\"王小明\",\"contactPerson\":\"李小華\",\"email\":\"info@xander.com.tw\",\"invoiceTitle\":\"建達國際股份有限公司\",\"taxIDNumber\":\"12345678\",\"orderTax\":1,\"payableDiscount\":1.0,\"defaultPaymentMethod\":0,\"telephone1\":\"02-12345678\",\"cellphone\":\"0912345678\",\"companyAddress\":\"台北市中正區測試路1號\",\"payableDay\":25,\"bankBranch\":\"台北分行\",\"accountName\":\"建達國際\",\"bankAccount\":\"12345678901234\",\"isCheckoutByMonth\":true}"
+
+# 修改廠商
+curl -X PUT "http://localhost:8080/api/vendor/update" -H "Content-Type: application/json" -d "{\"vendorCode\":\"999\",\"vendorName\":\"修改後名稱\",\"telephone1\":\"02-99999999\"}"
+
+# 刪除廠商
+curl -X DELETE "http://localhost:8080/api/vendor/delete/999"
+
+# 查詢所有廠商
+curl -X GET "http://localhost:8080/api/vendor/list"
+
+# 依廠商名稱查詢
+curl -X GET "http://localhost:8080/api/vendor/list?vendorName=建達"
+
+# 依廠商代碼查詢
+curl -X GET "http://localhost:8080/api/vendor/list?vendorCode=778"
+
+# 健康檢查
+curl -X GET "http://localhost:8080/api/vendor/health"
 
 ================================================================================
 【附錄四】錯誤碼說明
