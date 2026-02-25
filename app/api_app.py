@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.routers import docs, order, order_conversion, product, quotation, waiting_product
+from app.routers import category, docs, order, order_conversion, product, quotation, waiting_product
 
 
 def create_app(context_path: str = "") -> FastAPI:
@@ -15,6 +15,7 @@ def create_app(context_path: str = "") -> FastAPI:
     app.include_router(product.router)
     app.include_router(quotation.router)
     app.include_router(waiting_product.router)
+    app.include_router(category.router)
     app.include_router(order.router)
     app.include_router(order_conversion.router)
     app.include_router(docs.router)

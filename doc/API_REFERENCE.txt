@@ -24,6 +24,10 @@
   GET  /api/waiting-product/list        查詢待上架商品列表
   GET  /api/waiting-product/health      健康檢查
 
+【分類 API】
+  POST /api/category/create             新增商品分類
+  GET  /api/category/health             健康檢查
+
 【文件 API】
   GET  /api/doc/reference               取得 API 說明文件（HTML 格式）
   GET  /api/doc/reference/raw           取得 API 說明文件（純文字）
@@ -484,6 +488,125 @@ GET /api/waiting-product/list?vendorCode=778&status=新增
 
 ################################################################################
 #                                                                              #
+#                             分類 API                                         #
+#                                                                              #
+################################################################################
+
+================================================================================
+【5】新增商品分類
+================================================================================
+
+POST /api/category/create
+Content-Type: application/json
+
+必填欄位：
+  - categoryName  分類名稱
+  - level         層級（1=大類別, 2=中類別, 3=小類別）
+
+選填欄位：
+  - parentId      父類別 ID
+                   ※ level=1 時不需要（必須為 null）
+                   ※ level=2 時必填（指向大類別的 CategoryID）
+                   ※ level=3 時必填（指向中類別的 CategoryID）
+
+CategoryID 自動生成規則：
+  - 同層級內取 MAX(CategoryID) + 1
+  - Layer 1 & 2：2 位數補零（01, 02, ...）
+  - Layer 3：3 位數補零（001, 002, ...）
+
+預設欄位值：
+  - DiscountQuantity = 0
+  - Discount = 1
+  - PreferentialDiscount = 1
+  - VipDiscount = 1
+
+--------------------------------------------------------------------------------
+請求範例（新增大類別）：
+--------------------------------------------------------------------------------
+
+{
+  "categoryName": "電腦周邊",
+  "level": 1,
+  "parentId": null
+}
+
+--------------------------------------------------------------------------------
+請求範例（新增中類別，parentId 為大類別 ID）：
+--------------------------------------------------------------------------------
+
+{
+  "categoryName": "鍵盤滑鼠",
+  "level": 2,
+  "parentId": "01"
+}
+
+--------------------------------------------------------------------------------
+請求範例（新增小類別，parentId 為中類別 ID）：
+--------------------------------------------------------------------------------
+
+{
+  "categoryName": "無線鍵盤",
+  "level": 3,
+  "parentId": "01"
+}
+
+--------------------------------------------------------------------------------
+回應範例（成功）：
+--------------------------------------------------------------------------------
+
+{
+  "success": true,
+  "message": "分類建立成功",
+  "data": {
+    "categoryId": "02",
+    "categoryName": "電腦周邊",
+    "level": 1,
+    "parentId": null
+  }
+}
+
+--------------------------------------------------------------------------------
+回應範例（失敗 - 缺少 parentId）：
+--------------------------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "建立失敗：中類別（level=2）必須指定 parentId（大類別 ID）",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "details": "中類別（level=2）必須指定 parentId（大類別 ID）"
+  }
+}
+
+--------------------------------------------------------------------------------
+回應範例（失敗 - 父類別不存在）：
+--------------------------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "建立失敗：父類別不存在：CategoryID=99 (Layer 1 大類別)",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "details": "父類別不存在：CategoryID=99 (Layer 1 大類別)"
+  }
+}
+
+--------------------------------------------------------------------------------
+回應範例（失敗 - 同層級重複名稱）：
+--------------------------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "建立失敗：同層級已存在相同名稱的分類：電腦周邊",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "details": "同層級已存在相同名稱的分類：電腦周邊"
+  }
+}
+
+
+################################################################################
+#                                                                              #
 #                              附錄                                            #
 #                                                                              #
 ################################################################################
@@ -567,6 +690,21 @@ curl -X GET "http://localhost:8080/api/waiting-product/list?status=新增"
 
 # 健康檢查
 curl -X GET "http://localhost:8080/api/waiting-product/health"
+
+
+# ===== 分類 API =====
+
+# 新增大類別
+curl -X POST "http://localhost:8080/api/category/create" -H "Content-Type: application/json" -d "{\"categoryName\":\"電腦周邊\",\"level\":1,\"parentId\":null}"
+
+# 新增中類別（parentId 為大類別 CategoryID）
+curl -X POST "http://localhost:8080/api/category/create" -H "Content-Type: application/json" -d "{\"categoryName\":\"鍵盤滑鼠\",\"level\":2,\"parentId\":\"01\"}"
+
+# 新增小類別（parentId 為中類別 CategoryID）
+curl -X POST "http://localhost:8080/api/category/create" -H "Content-Type: application/json" -d "{\"categoryName\":\"無線鍵盤\",\"level\":3,\"parentId\":\"01\"}"
+
+# 健康檢查
+curl -X GET "http://localhost:8080/api/category/health"
 
 ================================================================================
 【附錄四】錯誤碼說明
