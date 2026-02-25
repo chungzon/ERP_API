@@ -34,3 +34,27 @@ class CreateCategoryResponse(BaseModel):
     message: str = ""
     data: Optional[CategoryData] = None
     error: Optional[ErrorInfo] = None
+
+
+class UpdateCategoryRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    category_id: str = Field(alias="categoryId")
+    category_name: Optional[str] = Field(default=None, alias="categoryName")
+
+
+class UpdateCategoryResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    success: bool = False
+    message: str = ""
+    data: Optional[CategoryData] = None
+    error: Optional[ErrorInfo] = None
+
+
+class DeleteCategoryResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    success: bool = False
+    message: str = ""
+    error: Optional[ErrorInfo] = None

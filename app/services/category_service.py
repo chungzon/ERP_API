@@ -122,3 +122,118 @@ def create_category(request) -> dict:
         "level": level,
         "parentId": parent_id,
     }
+
+
+def _get_category_by_id(category_id: str) -> dict:
+    """Fetch a category by its ID. Raises ValueError if not found."""
+    with db_manager.cursor() as cursor:
+        cursor.execute(
+            "SELECT CategoryID, CategoryName, CategoryLayer, ParentCategoryID "
+            "FROM ProductCategory "
+            "WHERE CategoryID = %s",
+            (category_id,),
+        )
+        row = cursor.fetchone()
+    if row is None:
+        raise ValueError(f"分類不存在：CategoryID={category_id}")
+    return row
+
+
+def update_category(request) -> dict:
+    """Update an existing product category. Returns dict with updated info."""
+
+    category_id = request.category_id.strip()
+    if not category_id:
+        raise ValueError("categoryId 不能為空")
+
+    # Verify category exists
+    existing = _get_category_by_id(category_id)
+
+    category_name = request.category_name
+    if category_name is not None:
+        category_name = category_name.strip()
+        if not category_name:
+            raise ValueError("分類名稱不能為空")
+
+        # Check duplicate name within same layer (exclude self)
+        layer = existing["CategoryLayer"]
+        with db_manager.cursor() as cursor:
+            cursor.execute(
+                "SELECT 1 AS cnt FROM ProductCategory "
+                "WHERE CategoryName = %s AND CategoryLayer = %s AND CategoryID != %s",
+                (category_name, layer, category_id),
+            )
+            if cursor.fetchone() is not None:
+                raise ValueError(f"同層級已存在相同名稱的分類：{category_name}")
+
+        # Update
+        with db_manager.cursor() as cursor:
+            cursor.execute(
+                "UPDATE ProductCategory SET CategoryName = %s WHERE CategoryID = %s",
+                (category_name, category_id),
+            )
+
+        logger.info(
+            "Category updated - ID: %s, Name: %s -> %s",
+            category_id, existing["CategoryName"], category_name,
+        )
+    else:
+        # Nothing to update
+        category_name = existing["CategoryName"]
+
+    return {
+        "categoryId": category_id,
+        "categoryName": category_name,
+        "level": existing["CategoryLayer"],
+        "parentId": existing["ParentCategoryID"],
+    }
+
+
+def delete_category(category_id: str) -> None:
+    """Delete a category after checking for related products and child categories."""
+
+    category_id = category_id.strip()
+    if not category_id:
+        raise ValueError("categoryId 不能為空")
+
+    # Verify category exists
+    existing = _get_category_by_id(category_id)
+    layer = existing["CategoryLayer"]
+
+    # Check for child categories
+    with db_manager.cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*) AS cnt FROM ProductCategory "
+            "WHERE ParentCategoryID = %s",
+            (category_id,),
+        )
+        row = cursor.fetchone()
+        if row and row["cnt"] > 0:
+            raise ValueError(f"此分類下尚有 {row['cnt']} 個子分類，無法刪除")
+
+    # Check for related products in store_category
+    column_map = {1: "FirstCategory_Id", 2: "SecondCategory_Id", 3: "ThirdCategory_Id"}
+    column_name = column_map.get(layer)
+
+    if column_name:
+        with db_manager.cursor() as cursor:
+            cursor.execute(
+                f"SELECT COUNT(*) AS cnt FROM store_category "
+                f"WHERE {column_name} = %s",
+                (category_id,),
+            )
+            row = cursor.fetchone()
+            if row and row["cnt"] > 0:
+                raise ValueError(f"此分類下尚有 {row['cnt']} 個關聯商品，無法刪除")
+
+    # Delete the category
+    with db_manager.cursor() as cursor:
+        cursor.execute(
+            "DELETE FROM ProductCategory WHERE CategoryID = %s",
+            (category_id,),
+        )
+
+    logger.info(
+        "Category deleted - ID: %s, Name: %s, Layer: %s",
+        category_id, existing["CategoryName"], layer,
+    )
