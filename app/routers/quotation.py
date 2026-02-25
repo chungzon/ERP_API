@@ -1,6 +1,7 @@
 import logging
+from typing import Optional
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 from app.models.quotation import (
@@ -8,6 +9,7 @@ from app.models.quotation import (
     CreateQuotationResponse,
     ErrorInfo,
     QuotationData,
+    QuotationListResponse,
 )
 from app.services import quotation_service
 
@@ -83,6 +85,55 @@ def create_quotation(request: CreateQuotationRequest):
         response = CreateQuotationResponse(
             success=False,
             message="建立失敗：伺服器內部錯誤",
+            error=ErrorInfo(code="INTERNAL_ERROR", details=str(e)),
+        )
+        return JSONResponse(
+            status_code=500,
+            content=response.model_dump(by_alias=True, exclude_none=True),
+        )
+
+
+@router.get("/list")
+def list_quotations(
+    objectId: Optional[str] = Query(default=None),
+    startDate: Optional[str] = Query(default=None),
+    endDate: Optional[str] = Query(default=None),
+    status: Optional[int] = Query(default=None),
+):
+    try:
+        result = quotation_service.list_quotations(
+            object_id=objectId,
+            start_date=startDate,
+            end_date=endDate,
+            status=status,
+        )
+
+        response = QuotationListResponse(
+            success=True,
+            message="查詢成功",
+            data=result,
+            total=len(result),
+        )
+        return JSONResponse(
+            content=response.model_dump(by_alias=True, exclude_none=True)
+        )
+
+    except ValueError as e:
+        response = QuotationListResponse(
+            success=False,
+            message=f"查詢失敗：{e}",
+            error=ErrorInfo(code="VALIDATION_ERROR", details=str(e)),
+        )
+        return JSONResponse(
+            status_code=400,
+            content=response.model_dump(by_alias=True, exclude_none=True),
+        )
+
+    except Exception as e:
+        logger.error("Quotation list query failed: %s", e, exc_info=True)
+        response = QuotationListResponse(
+            success=False,
+            message="查詢失敗：伺服器內部錯誤",
             error=ErrorInfo(code="INTERNAL_ERROR", details=str(e)),
         )
         return JSONResponse(

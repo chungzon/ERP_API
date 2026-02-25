@@ -1,8 +1,11 @@
 import logging
 from datetime import datetime
 
+from collections import defaultdict
+from typing import Optional
+
 from app.database.connection import db_manager
-from app.models.quotation import CreateQuotationRequest
+from app.models.quotation import CreateQuotationRequest, QuotationItemDTO, QuotationListDTO
 
 logger = logging.getLogger(__name__)
 
@@ -382,3 +385,112 @@ def create_quotation(request: CreateQuotationRequest) -> dict:
         "orderNumber": str(order_number),
         "orderDate": request.order_date,
     }
+
+
+def list_quotations(
+    object_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    status: Optional[int] = None,
+) -> list[QuotationListDTO]:
+    """Query quotations created via API (EstablishSource=0, OrderSource=0)."""
+
+    conditions = [
+        "o.OrderSource = %s",
+        "o.EstablishSource = %s",
+    ]
+    params: list = [ORDER_SOURCE_QUOTATION, ESTABLISH_SOURCE_SYSTEM]
+
+    if object_id and object_id.strip():
+        conditions.append("o.ObjectID = %s")
+        params.append(object_id.strip())
+
+    if start_date and start_date.strip():
+        conditions.append("o.OrderDate >= %s")
+        params.append(start_date.strip())
+
+    if end_date and end_date.strip():
+        conditions.append("o.OrderDate <= %s")
+        params.append(end_date.strip())
+
+    if status is not None:
+        conditions.append("o.status = %s")
+        params.append(status)
+
+    where_clause = " AND ".join(conditions)
+
+    # Query orders with price info
+    with db_manager.cursor() as cursor:
+        cursor.execute(
+            f"""SELECT
+                o.id, o.OrderNumber, o.OrderDate, o.ObjectID,
+                o.NumberOfItems, o.isCheckout, o.status,
+                o.Remark, o.CashierRemark,
+                p.TotalPriceNoneTax, p.Tax, p.Discount, p.TotalPriceIncludeTax
+            FROM dbo.Orders o
+            LEFT JOIN dbo.Orders_Price p ON o.id = p.Order_id
+            WHERE {where_clause}
+            ORDER BY o.OrderDate DESC, o.id DESC""",
+            tuple(params),
+        )
+        rows = cursor.fetchall()
+
+    if not rows:
+        return []
+
+    # Collect order IDs for items query
+    order_ids = [row["id"] for row in rows]
+
+    # Query items for all matched orders
+    items_by_order: dict[int, list[QuotationItemDTO]] = defaultdict(list)
+    with db_manager.cursor() as cursor:
+        placeholders = ",".join(["%s"] * len(order_ids))
+        cursor.execute(
+            f"""SELECT Order_id, ItemNumber, ISBN, ProductName,
+                Quantity, Unit, Pricing, PriceAmount, Remark
+            FROM dbo.Orders_Items
+            WHERE Order_id IN ({placeholders})
+            ORDER BY Order_id, ItemNumber""",
+            tuple(order_ids),
+        )
+        for item_row in cursor.fetchall():
+            items_by_order[item_row["Order_id"]].append(
+                QuotationItemDTO(
+                    item_number=item_row["ItemNumber"],
+                    isbn=item_row["ISBN"] or None,
+                    product_name=item_row["ProductName"] or None,
+                    quantity=item_row["Quantity"],
+                    unit=item_row["Unit"] or None,
+                    pricing=item_row["Pricing"],
+                    price_amount=item_row["PriceAmount"],
+                    remark=item_row["Remark"] or None,
+                )
+            )
+
+    # Build result DTOs
+    result = []
+    for row in rows:
+        order_date = row["OrderDate"]
+        if order_date and hasattr(order_date, "strftime"):
+            order_date = order_date.strftime("%Y/%m/%d")
+
+        result.append(
+            QuotationListDTO(
+                id=row["id"],
+                order_number=str(row["OrderNumber"]) if row["OrderNumber"] else None,
+                order_date=str(order_date) if order_date else None,
+                object_id=row["ObjectID"],
+                number_of_items=row["NumberOfItems"],
+                is_checkout=bool(row["isCheckout"]),
+                status=row["status"],
+                remark=row["Remark"] or None,
+                cashier_remark=row["CashierRemark"] or None,
+                total_price_none_tax=row["TotalPriceNoneTax"],
+                tax=row["Tax"],
+                discount=row["Discount"],
+                total_price_include_tax=row["TotalPriceIncludeTax"],
+                items=items_by_order.get(row["id"]) or None,
+            )
+        )
+
+    return result

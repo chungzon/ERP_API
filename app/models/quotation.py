@@ -138,3 +138,45 @@ class CreateQuotationResponse(BaseModel):
     message: str = ""
     data: Optional[QuotationData] = None
     error: Optional[ErrorInfo] = None
+
+
+class QuotationItemDTO(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    item_number: Optional[int] = Field(default=None, alias="itemNumber")
+    isbn: Optional[str] = Field(default=None, alias="isbn")
+    product_name: Optional[str] = Field(default=None, alias="productName")
+    quantity: Optional[int] = Field(default=None, alias="quantity")
+    unit: Optional[str] = Field(default=None, alias="unit")
+    pricing: Optional[float] = Field(default=None, alias="pricing")
+    price_amount: Optional[int] = Field(default=None, alias="priceAmount")
+    remark: Optional[str] = Field(default=None, alias="remark")
+
+
+class QuotationListDTO(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: Optional[int] = Field(default=None, alias="id")
+    order_number: Optional[str] = Field(default=None, alias="orderNumber")
+    order_date: Optional[str] = Field(default=None, alias="orderDate")
+    object_id: Optional[str] = Field(default=None, alias="objectId")
+    number_of_items: Optional[int] = Field(default=None, alias="numberOfItems")
+    is_checkout: Optional[bool] = Field(default=None, alias="isCheckout")
+    status: Optional[int] = Field(default=None, alias="status")
+    remark: Optional[str] = Field(default=None, alias="remark")
+    cashier_remark: Optional[str] = Field(default=None, alias="cashierRemark")
+    total_price_none_tax: Optional[int] = Field(default=None, alias="totalPriceNoneTax")
+    tax: Optional[int] = Field(default=None, alias="tax")
+    discount: Optional[int] = Field(default=None, alias="discount")
+    total_price_include_tax: Optional[int] = Field(default=None, alias="totalPriceIncludeTax")
+    items: Optional[list[QuotationItemDTO]] = Field(default=None, alias="items")
+
+
+class QuotationListResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    success: bool = False
+    message: str = ""
+    data: Optional[list[QuotationListDTO]] = None
+    total: int = 0
+    error: Optional[ErrorInfo] = None

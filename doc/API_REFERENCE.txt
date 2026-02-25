@@ -17,6 +17,7 @@
 
 【報價單 API】
   POST /api/quotation/create            建立報價單
+  GET  /api/quotation/list              查詢報價單列表（API建立）
   GET  /api/quotation/health            健康檢查
 
 【待上架商品 API】
@@ -285,6 +286,82 @@ Content-Type: application/json
     "code": "VALIDATION_ERROR",
     "details": "报价日期不能为空"
   }
+}
+
+================================================================================
+【8】查詢報價單列表（API建立）
+================================================================================
+
+GET /api/quotation/list
+
+說明：
+  查詢透過 API 建立的報價單（自動篩選 OrderSource=0, EstablishSource=0）
+
+查詢參數（全部選填）：
+  - objectId    客戶 ID（精確比對）
+  - startDate   起始日期（yyyy/MM/dd）
+  - endDate     結束日期（yyyy/MM/dd）
+  - status      訂單狀態（0=有效, 1=刪除）
+
+排序：依報價日期降冪、ID 降冪
+
+--------------------------------------------------------------------------------
+請求範例：
+--------------------------------------------------------------------------------
+
+GET /api/quotation/list
+GET /api/quotation/list?objectId=1611
+GET /api/quotation/list?startDate=2026/01/01&endDate=2026/01/31
+GET /api/quotation/list?objectId=1611&startDate=2026/01/01&status=0
+
+--------------------------------------------------------------------------------
+回應範例（成功）：
+--------------------------------------------------------------------------------
+
+{
+  "success": true,
+  "message": "查詢成功",
+  "data": [
+    {
+      "id": 123,
+      "orderNumber": "202601270001",
+      "orderDate": "2026/01/27",
+      "objectId": "1611",
+      "numberOfItems": 2,
+      "isCheckout": false,
+      "status": 0,
+      "remark": "訂單備註",
+      "cashierRemark": "",
+      "totalPriceNoneTax": 1143,
+      "tax": 57,
+      "discount": 0,
+      "totalPriceIncludeTax": 1200,
+      "items": [
+        {
+          "itemNumber": 1,
+          "isbn": "9781234567890",
+          "productName": "無線滑鼠",
+          "quantity": 2,
+          "unit": "個",
+          "pricing": 800.0,
+          "priceAmount": 1200,
+          "remark": "商品備註"
+        }
+      ]
+    }
+  ],
+  "total": 1
+}
+
+--------------------------------------------------------------------------------
+回應範例（成功 - 無資料）：
+--------------------------------------------------------------------------------
+
+{
+  "success": true,
+  "message": "查詢成功",
+  "data": [],
+  "total": 0
 }
 
 
@@ -804,6 +881,15 @@ curl -X GET "http://localhost:8080/api/product/health"
 
 # 建立報價單（最精簡）
 curl -X POST "http://localhost:8080/api/quotation/create" -H "Content-Type: application/json" -d "{\"orderDate\":\"2026/01/27\",\"objectID\":\"1611\",\"products\":[{\"productName\":\"測試商品\",\"quantity\":1}]}"
+
+# 查詢所有 API 建立的報價單
+curl -X GET "http://localhost:8080/api/quotation/list"
+
+# 依客戶 ID 查詢
+curl -X GET "http://localhost:8080/api/quotation/list?objectId=1611"
+
+# 依日期範圍查詢
+curl -X GET "http://localhost:8080/api/quotation/list?startDate=2026/01/01&endDate=2026/01/31"
 
 # 健康檢查
 curl -X GET "http://localhost:8080/api/quotation/health"
