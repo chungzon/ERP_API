@@ -25,7 +25,7 @@ def _check_duplicate_name(category_name: str, layer: int) -> None:
     """Check if a category with the same name exists at the same layer."""
     with db_manager.cursor() as cursor:
         cursor.execute(
-            "SELECT 1 FROM ProductCategory "
+            "SELECT 1 AS cnt FROM ProductCategory "
             "WHERE CategoryName = %s AND CategoryLayer = %s",
             (category_name, layer),
         )
